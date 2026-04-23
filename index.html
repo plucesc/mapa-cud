@@ -1,0 +1,1034 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="stylesheet" href="./resources/ol.css">
+    <link rel="stylesheet" href="resources/fontawesome-all.min.css">
+    <link href="resources/photon-geocoder-autocomplete.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="./resources/ol-layerswitcher.css">
+    <link rel="stylesheet" href="./resources/qgis2web.css">
+
+    <style>
+        :root{
+            --panel-bg: rgba(255,255,255,0.97);
+            --ink: #24324a;
+            --muted: #53627c;
+            --accent: #0B1F5B;
+            --accent-2: #486889;
+            --line: #dde5f2;
+            --shadow: 0 3px 14px rgba(0,0,0,0.18);
+            --c1: #fff9c4;
+            --c2: #d9ddb2;
+            --c3: #b4c0b7;
+            --c4: #7e95a3;
+            --c5: #486889;
+            --c6: #0B1F5B;
+        }
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            color: var(--ink);
+            overflow: hidden;
+            background: #ffffff;
+        }
+        #map{
+            position: fixed;
+            inset: 0;
+        }
+        .ol-control > * {
+            background-color: #f8f8f8 !important;
+            color: #444444 !important;
+            border-radius: 0 !important;
+        }
+        .ol-attribution a, .gcd-gl-input::placeholder, .search-layer-input-search::placeholder {
+            color: #444444 !important;
+        }
+        .search-layer-input-search {
+            background-color: #f8f8f8 !important;
+        }
+        .ol-control > *:focus, .ol-control > *:hover {
+            background-color: rgba(248,248,248,0.7) !important;
+        }
+        .ol-control {
+            background-color: rgba(255,255,255,.4) !important;
+            padding: 2px !important;
+        }
+        .top-left-stack{
+            position:absolute;
+            top:12px;
+            left:12px;
+            z-index:1000;
+            display:flex;
+            flex-direction:column;
+            gap:10px;
+            width:340px;
+        }
+        .top-right-stack{
+            position:absolute;
+            top:12px;
+            right:12px;
+            z-index:1000;
+            width:290px;
+        }
+        .panel-box{
+            background:var(--panel-bg);
+            border-radius:10px;
+            box-shadow:var(--shadow);
+            border:1px solid rgba(11,31,91,0.06);
+        }
+        .header-panel{
+            padding:10px 14px;
+        }
+        .header-kicker{
+            font-size:10px;
+            font-weight:bold;
+            letter-spacing:0.4px;
+            color:var(--muted);
+            text-transform:uppercase;
+            margin-bottom:4px;
+        }
+        .header-title{
+            font-size:20px;
+            font-weight:700;
+            color:var(--accent);
+            margin-bottom:4px;
+            line-height:1.15;
+        }
+        .header-subtitle{
+            font-size:11px;
+            color:var(--ink);
+            margin-bottom:4px;
+            line-height:1.35;
+        }
+        .header-source{
+            font-size:10px;
+            color:#6b778c;
+        }
+        .info-panel{
+            padding:12px 14px;
+        }
+        .info-title{
+            font-size:14px;
+            font-weight:bold;
+            color:var(--accent);
+            margin-bottom:8px;
+        }
+        .info-grid{
+            display:grid;
+            grid-template-columns:1fr;
+            gap:8px;
+        }
+        .info-card{
+            background:#f7f9fc;
+            border:1px solid var(--line);
+            border-radius:8px;
+            padding:8px;
+        }
+        .info-card-label{
+            font-size:11px;
+            color:var(--muted);
+            margin-bottom:3px;
+        }
+        .info-card-value{
+            font-size:15px;
+            font-weight:bold;
+            color:var(--accent);
+        }
+        .info-card-value-multiline{
+            font-size:11px;
+            font-weight:600;
+            color:var(--accent);
+            line-height:1.45;
+        }
+        .info-card-value-multiline div{
+            display:flex;
+            justify-content:space-between;
+            gap:10px;
+            border-bottom:1px solid #e8edf6;
+            padding:2px 0;
+        }
+        .info-card-value-multiline div:last-child{
+            border-bottom:none;
+        }
+        .filter-panel{
+            padding:14px;
+        }
+        .filter-panel h3{
+            margin:0 0 8px 0;
+            font-size:15px;
+            color:var(--accent);
+        }
+        .filter-panel label{
+            font-size:12px;
+            font-weight:bold;
+            display:block;
+            margin-top:8px;
+            margin-bottom:3px;
+            color:var(--ink);
+        }
+        .filter-panel select{
+            width:100%;
+            padding:6px;
+            border-radius:6px;
+            border:1px solid #cfd3da;
+            font-size:12px;
+            background:#fff;
+            min-height:34px;
+        }
+        .filter-panel .btn{
+            margin-top:10px;
+            width:100%;
+            padding:9px 10px;
+            border:none;
+            border-radius:6px;
+            font-size:12px;
+            font-weight:600;
+            cursor:pointer;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            gap:6px;
+            transition:background 0.2s ease, transform 0.1s ease;
+        }
+        .filter-panel .btn:hover{
+            transform:translateY(-1px);
+        }
+        .btn-primary{ background:#0B1F5B; color:white; }
+        .btn-primary:hover{ background:#16357f; }
+        .btn-secondary{
+            background:#e9eef8;
+            color:#0B1F5B;
+            border:1px solid #cfd8ea;
+        }
+        .btn-secondary:hover{ background:#dbe5f5; }
+        .btn-neutral{
+            background:#f3f4f6;
+            color:#333;
+            border:1px solid #d9dde3;
+        }
+        .btn-neutral:hover{ background:#e7eaee; }
+        .status-note{
+            margin-top:10px;
+            font-size:11px;
+            color:#6b778c;
+            line-height:1.35;
+        }
+        .chart-panel{
+            position:absolute;
+            left:12px;
+            bottom:20px;
+            z-index:1000;
+            background:var(--panel-bg);
+            padding:12px 14px;
+            border-radius:10px;
+            box-shadow:var(--shadow);
+            width:380px;
+            border:1px solid rgba(11,31,91,0.06);
+        }
+        .chart-title{
+            font-size:14px;
+            font-weight:bold;
+            color:var(--accent);
+            margin-bottom:10px;
+        }
+        .chart-row{ margin-bottom:8px; }
+        .chart-label{
+            font-size:11px;
+            color:var(--ink);
+            margin-bottom:3px;
+            display:flex;
+            justify-content:space-between;
+            gap:10px;
+        }
+        .chart-bar-wrap{
+            width:100%;
+            height:14px;
+            background:#eef2f8;
+            border-radius:999px;
+            overflow:hidden;
+        }
+        .chart-bar{
+            height:100%;
+            border-radius:999px;
+        }
+        .ol-popup {
+            position: absolute;
+            background-color: rgba(255,255,255,.98);
+            box-shadow: var(--shadow);
+            padding: 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(0,0,0,0.12);
+            min-width: 280px;
+        }
+        .ol-popup-closer {
+            text-decoration: none;
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            color: #64748b;
+            font-weight: 700;
+        }
+        .popup-title{
+            font-weight:bold;
+            font-size:15px;
+            color:var(--accent);
+            margin-bottom:6px;
+        }
+        .popup-subtitle{
+            font-size:11px;
+            color:var(--muted);
+            margin-bottom:8px;
+            line-height:1.35;
+        }
+        .popup-table{
+            font-size:12px;
+            border-collapse:collapse;
+            width:100%;
+        }
+        .popup-table td{
+            padding:3px 4px;
+            border-bottom:1px solid #eee;
+        }
+        .popup-table td:first-child{
+            color:var(--ink);
+            font-weight:bold;
+        }
+        .ol-zoom{
+            top:auto !important;
+            left:auto !important;
+            right:12px !important;
+            bottom:20px !important;
+            background:transparent !important;
+            padding:0 !important;
+            z-index:2000 !important;
+        }
+        .ol-zoom button{
+            width:36px !important;
+            height:36px !important;
+            margin:0 0 6px 0 !important;
+            border-radius:8px !important;
+            border:1px solid rgba(11,31,91,0.10) !important;
+            background:rgba(255,255,255,0.97) !important;
+            color:var(--accent) !important;
+            box-shadow:var(--shadow);
+            font-size:20px !important;
+            line-height:1 !important;
+        }
+        .ol-zoom button:hover{
+            background:#ffffff !important;
+        }
+        @media (max-width: 900px){
+            .top-left-stack{
+                width:calc(100% - 24px);
+            }
+            .top-right-stack{
+                top:auto;
+                right:12px;
+                left:12px;
+                width:auto;
+                position:absolute;
+            }
+            .filter-panel{
+                margin-top:370px;
+            }
+            .chart-panel{
+                left:12px;
+                width:calc(100% - 36px);
+                bottom:72px;
+            }
+            .ol-zoom{
+                right:12px !important;
+                bottom:12px !important;
+            }
+        }
+        .ol-popup-closer:after{ content:none !important; }
+</style>
+
+    <title>Mapa CUD por comuna</title>
+</head>
+<body>
+    <div id="map">
+        <div id="popup" class="ol-popup">
+            <a href="#" id="popup-closer" class="ol-popup-closer">×</a>
+            <div id="popup-content"></div>
+        </div>
+    </div>
+
+
+    <div class="top-left-stack">
+        <div class="header-panel panel-box">
+            <div class="header-kicker">BA Discapacidad · DGINCD · Visualización territorial</div>
+            <div class="header-title">Mapa CUD por comuna</div>
+            <div class="header-subtitle">Consulta interactiva por comuna, rango etario, junta de discapacidad y sexo</div>
+            <div class="header-source">Gobierno de la Ciudad Autónoma de Buenos Aires</div>
+        </div>
+
+        <div class="info-panel panel-box">
+            <div class="info-title">Resumen ejecutivo de visualización</div>
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-card-label">Total mostrado</div>
+                    <div class="info-card-value" id="kpiTotal">0</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-label">Comuna con mayor valor</div>
+                    <div class="info-card-value" id="kpiMax">-</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-label">Comuna con menor valor</div>
+                    <div class="info-card-value" id="kpiMin">-</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-label">Distribución por sexo</div>
+                    <div class="info-card-value-multiline" id="kpiSexo">-</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-label" id="kpiBarriosLabel">Top barrios (general)</div>
+                    <div class="info-card-value-multiline" id="kpiBarrios">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="top-right-stack">
+        <div class="filter-panel panel-box">
+            <h3>Consulta y exportación de datos</h3>
+
+            <label for="filterComuna">Comuna</label>
+            <select id="filterComuna"><option value="">Todas</option></select>
+
+            <label for="filterRango">Rango etario</label>
+            <select id="filterRango"><option value="">Todos</option></select>
+
+            <label for="filterJunta">Junta discapacidad</label>
+            <select id="filterJunta"><option value="">Todas</option></select>
+
+            <label for="filterSexo">Sexo</label>
+            <select id="filterSexo"><option value="">Todos</option></select>
+
+            <button class="btn btn-primary" id="btnApply">Aplicar filtros</button>
+            <button class="btn btn-neutral" id="btnClear">Limpiar filtros</button>
+            <button class="btn btn-primary" id="btnExportSummary">Exportar resumen CSV</button>
+
+            <div class="status-note" id="statusNote">Sin filtros activos. Se muestran todos los casos del mapa.</div>
+        </div>
+    </div>
+
+    <div class="chart-panel panel-box">
+        <div class="chart-title">Distribución por tipo de discapacidad</div>
+        <div id="chartContainer"></div>
+    </div>
+
+    <script src="resources/qgis2web_expressions.js"></script>
+    <script src="./resources/functions.js"></script>
+    <script src="./resources/ol.js"></script>
+    <script src="./resources/ol-layerswitcher.js"></script>
+    <script src="resources/photon-geocoder-autocomplete.min.js"></script>
+    <script src="layers/01_base_general_mapa_copidis_0.js"></script>
+    <script src="layers/comunas_2.js"></script>
+    <script src="styles/01_base_general_mapa_copidis_0_style.js"></script>
+    <script src="styles/comunas_2_style.js"></script>
+    <script src="./layers/layers.js" type="text/javascript"></script>
+    <script src="./resources/Autolinker.min.js"></script>
+    <script src="./resources/qgis2web.js"></script>
+
+    <script>
+    (function(){
+        const PALETTE = ['#fff9c4','#d9ddb2','#b4c0b7','#7e95a3','#486889','#0B1F5B'];
+        const MAP_BINS = 5;
+        const COMUNA_BARRIOS = {
+            '1': ['Retiro','San Nicolás','Puerto Madero','San Telmo','Montserrat','Constitución'],
+            '2': ['Recoleta'],
+            '3': ['Balvanera','San Cristóbal'],
+            '4': ['La Boca','Barracas','Parque Patricios','Nueva Pompeya'],
+            '5': ['Almagro','Boedo'],
+            '6': ['Caballito'],
+            '7': ['Flores','Parque Chacabuco'],
+            '8': ['Villa Soldati','Villa Riachuelo','Villa Lugano'],
+            '9': ['Liniers','Mataderos','Parque Avellaneda'],
+            '10': ['Villa Real','Monte Castro','Versalles','Floresta','Vélez Sarsfield','Villa Luro'],
+            '11': ['Villa General Mitre','Villa Devoto','Villa del Parque','Villa Santa Rita'],
+            '12': ['Coghlan','Saavedra','Villa Urquiza','Villa Pueyrredón'],
+            '13': ['Núñez','Belgrano','Colegiales'],
+            '14': ['Palermo'],
+            '15': ['Chacarita','Villa Crespo','La Paternal','Villa Ortúzar','Agronomía','Parque Chas']
+        };
+
+        const $ = (id) => document.getElementById(id);
+        const fmt = (n) => Number(n || 0).toLocaleString('es-AR');
+        const clean = (v) => String(v ?? '').trim();
+        const norm = (v) => clean(v).toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+            .replace(/\s+/g,' ');
+        const normCode = (v) => {
+            const s = clean(v);
+            const match = s.match(/\d+/);
+            return match ? match[0] : s;
+        };
+
+        function getMapInstance(){
+            if (window.map) return window.map;
+            for (const key of Object.keys(window)) {
+                if (window[key] && typeof window[key].getLayers === 'function' && typeof window[key].forEachFeatureAtPixel === 'function') return window[key];
+            }
+            return null;
+        }
+
+        function getVectorLayers(map){
+            const flat = [];
+            map.getLayers().forEach(function(layer){ flat.push(layer); });
+            const candidates = flat.filter(l => l && typeof l.getSource === 'function' && l.getSource() && typeof l.getSource().getFeatures === 'function');
+            let pointLayer = null;
+            let comunaLayer = null;
+            candidates.forEach(layer => {
+                const src = layer.getSource();
+                const features = src.getFeatures() || [];
+                const first = features[0];
+                const geomType = first && first.getGeometry ? first.getGeometry().getType() : '';
+                const lname = (layer.get('title') || layer.get('name') || '').toLowerCase();
+                if (!pointLayer && (geomType.includes('Point') || lname.includes('base_general') || lname.includes('cud'))) pointLayer = layer;
+                if (!comunaLayer && (geomType.includes('Polygon') || lname.includes('comuna'))) comunaLayer = layer;
+            });
+            pointLayer = pointLayer || window.lyr_01_base_general_mapa_copidis_0 || candidates[0];
+            comunaLayer = comunaLayer || window.lyr_comunas_2 || candidates.find(l => l !== pointLayer);
+            return { pointLayer, comunaLayer };
+        }
+
+        function findField(props, candidates){
+            const keys = Object.keys(props || {});
+            const keyMap = new Map(keys.map(k => [norm(k), k]));
+            for (const c of candidates) {
+                if (keyMap.has(norm(c))) return keyMap.get(norm(c));
+            }
+            for (const key of keys) {
+                const nk = norm(key);
+                if (candidates.some(c => nk.includes(norm(c)))) return key;
+            }
+            return null;
+        }
+
+        function escapeHtml(value){
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function downloadCSV(filename, rows){
+            if (!rows || !rows.length) return;
+            const csv = rows.map(row => row.map(cell => {
+                const val = String(cell ?? '');
+                return /[",;\n]/.test(val) ? '"' + val.replace(/"/g, '""') + '"' : val;
+            }).join(';')).join('\n');
+            const blob = new Blob(["\ufeff" + csv], {type: 'text/csv;charset=utf-8;'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        function uniqSorted(values){
+            return Array.from(new Set(values.filter(Boolean))).sort((a,b) => String(a).localeCompare(String(b), 'es', {numeric:true}));
+        }
+
+        function getLargestPolygonInteriorPoint(geometry){
+            if (!geometry) return null;
+            const type = geometry.getType();
+            if (type === 'Polygon') return geometry.getInteriorPoint();
+            if (type === 'MultiPolygon') {
+                const polys = geometry.getPolygons();
+                if (!polys || !polys.length) return null;
+                let largest = polys[0];
+                let maxArea = Math.abs(largest.getArea());
+                for (let i = 1; i < polys.length; i++) {
+                    const area = Math.abs(polys[i].getArea());
+                    if (area > maxArea) {
+                        maxArea = area;
+                        largest = polys[i];
+                    }
+                }
+                return largest.getInteriorPoint();
+            }
+            return null;
+        }
+
+        function createTextStyle(text){
+            return new ol.style.Text({
+                text,
+                font: '700 11px Arial, sans-serif',
+                fill: new ol.style.Fill({ color: '#24324a' }),
+                backgroundFill: new ol.style.Fill({ color: 'rgba(255,255,255,0.92)' }),
+                backgroundStroke: new ol.style.Stroke({ color: 'rgba(0,0,0,0.15)', width: 1 }),
+                padding: [3,6,3,6],
+                overflow: true,
+                textAlign: 'center',
+                justify: 'center'
+            });
+        }
+
+        function chunkStyle(fillColor, text, feature){
+            const styles = [
+                new ol.style.Style({
+                    fill: new ol.style.Fill({ color: fillColor }),
+                    stroke: new ol.style.Stroke({ color: '#804000', width: 1 })
+                })
+            ];
+            if (text) {
+                styles.push(
+                    new ol.style.Style({
+                        geometry: function(feat){
+                            return getLargestPolygonInteriorPoint((feature || feat).getGeometry());
+                        },
+                        text: createTextStyle(text)
+                    })
+                );
+            }
+            return styles;
+        }
+
+        function init(){
+            const map = getMapInstance();
+            if (!map) {
+                $('statusNote').textContent = 'No se pudo detectar la instancia del mapa de OpenLayers.';
+                return;
+            }
+
+            const { pointLayer, comunaLayer } = getVectorLayers(map);
+            if (!pointLayer || !comunaLayer) {
+                $('statusNote').textContent = 'No se identificaron correctamente las capas de puntos y comunas.';
+                return;
+            }
+
+            const pointSource = pointLayer.getSource();
+            const comunaSource = comunaLayer.getSource();
+            const allPoints = pointSource.getFeatures() || [];
+            const allComunas = comunaSource.getFeatures() || [];
+            if (!allPoints.length) {
+                $('statusNote').textContent = 'La capa de casos no contiene entidades.';
+                return;
+            }
+
+            const samplePointProps = allPoints[0].getProperties();
+            const sampleComunaProps = (allComunas[0] || {getProperties:()=>({})}).getProperties();
+
+            const fields = {
+                comuna: findField(samplePointProps, ['COMUNA','comuna','comuna_num','nro_comuna']),
+                rango: findField(samplePointProps, ['Rango_etario','rango etario','rango','grupo_etario']),
+                junta: findField(samplePointProps, ['junta_discapacidad','tipo_disc','tipo_discapacidad','discapacidad','junta']),
+                sexo: findField(samplePointProps, ['Sexo','sexo']),
+                barrio: findField(samplePointProps, ['barrio','BARRIO','nombre_barrio']),
+                comunaPoly: findField(sampleComunaProps, ['COMUNA','comuna','Commune','nro_comuna']),
+                nombrePoly: findField(sampleComunaProps, ['nombre','name','comuna']),
+            };
+
+            const filterEls = {
+                comuna: $('filterComuna'),
+                rango: $('filterRango'),
+                junta: $('filterJunta'),
+                sexo: $('filterSexo')
+            };
+
+            const originalPointStyle = pointLayer.getStyle();
+            let filteredPoints = [...allPoints];
+            let countsByComuna = {};
+            let typeDist = [];
+
+            function getProp(feature, field){
+                if (!feature || !field) return '';
+                return clean(feature.get(field));
+            }
+
+            function pointComuna(feature){
+                return normCode(getProp(feature, fields.comuna));
+            }
+
+            function comunaCodeFromPolygon(feature){
+                const v = getProp(feature, fields.comunaPoly) || getProp(feature, fields.nombrePoly);
+                return normCode(v);
+            }
+
+            function populateSelect(select, values, placeholder){
+                select.innerHTML = `<option value="">${placeholder}</option>`;
+                values.forEach(value => {
+                    const opt = document.createElement('option');
+                    opt.value = value;
+                    opt.textContent = value;
+                    select.appendChild(opt);
+                });
+            }
+
+            function rebuildFilterOptions(){
+                populateSelect(filterEls.comuna, uniqSorted(allPoints.map(f => pointComuna(f)).filter(v => v && v !== '0')), 'Todas');
+                populateSelect(filterEls.rango, uniqSorted(allPoints.map(f => getProp(f, fields.rango))), 'Todos');
+                populateSelect(filterEls.junta, uniqSorted(allPoints.map(f => getProp(f, fields.junta))), 'Todas');
+                populateSelect(filterEls.sexo, uniqSorted(allPoints.map(f => getProp(f, fields.sexo))), 'Todos');
+            }
+
+            function matches(feature){
+                const values = {
+                    comuna: pointComuna(feature),
+                    rango: getProp(feature, fields.rango),
+                    junta: getProp(feature, fields.junta),
+                    sexo: getProp(feature, fields.sexo)
+                };
+                return (!filterEls.comuna.value || values.comuna === filterEls.comuna.value)
+                    && (!filterEls.rango.value || values.rango === filterEls.rango.value)
+                    && (!filterEls.junta.value || values.junta === filterEls.junta.value)
+                    && (!filterEls.sexo.value || values.sexo === filterEls.sexo.value);
+            }
+
+            function computeCounts(){
+                countsByComuna = {};
+                const distByType = {};
+                filteredPoints.forEach(feature => {
+                    const c = pointComuna(feature);
+                    countsByComuna[c] = (countsByComuna[c] || 0) + 1;
+                    const j = getProp(feature, fields.junta) || 'Sin dato';
+                    distByType[j] = (distByType[j] || 0) + 1;
+                });
+                typeDist = Object.entries(distByType)
+                    .map(([name, value]) => ({name, value}))
+                    .sort((a,b) => b.value - a.value || a.name.localeCompare(b.name, 'es'));
+            }
+
+            function computeBarriosTop(){
+                const selectedComuna = filterEls.comuna.value;
+                const counts = {};
+
+                filteredPoints.forEach(feature => {
+                    const c = pointComuna(feature);
+                    if (selectedComuna && c !== selectedComuna) return;
+
+                    const b = getProp(feature, fields.barrio) || 'Sin dato';
+                    counts[b] = (counts[b] || 0) + 1;
+                });
+
+                return Object.entries(counts)
+                    .sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))
+                    .slice(0, 5);
+            }
+
+            function quantile(sortedValues, q){
+                if (!sortedValues.length) return 0;
+                const pos = (sortedValues.length - 1) * q;
+                const base = Math.floor(pos);
+                const rest = pos - base;
+                const current = sortedValues[base];
+                const next = sortedValues[Math.min(base + 1, sortedValues.length - 1)];
+                return current + rest * (next - current);
+            }
+
+            function getBreaks(values){
+                const cleanValues = values.filter(v => Number(v) > 0).sort((a,b) => a-b);
+                if (!cleanValues.length) return [0,0,0,0,0];
+                const max = cleanValues[cleanValues.length - 1];
+                if (cleanValues.length <= MAP_BINS) {
+                    const out = [];
+                    for (let i = 1; i <= MAP_BINS; i++) {
+                        out.push(cleanValues[Math.min(i - 1, cleanValues.length - 1)]);
+                    }
+                    out[MAP_BINS - 1] = max;
+                    return out;
+                }
+                return [
+                    Math.ceil(quantile(cleanValues, 0.20)),
+                    Math.ceil(quantile(cleanValues, 0.40)),
+                    Math.ceil(quantile(cleanValues, 0.60)),
+                    Math.ceil(quantile(cleanValues, 0.80)),
+                    max
+                ];
+            }
+
+            function fillForValue(v, breaks){
+                if (v <= 0) return 'rgba(255,255,255,0.08)';
+                if (v <= breaks[0]) return PALETTE[1];
+                if (v <= breaks[1]) return PALETTE[2];
+                if (v <= breaks[2]) return PALETTE[3];
+                if (v <= breaks[3]) return PALETTE[4];
+                return PALETTE[5];
+            }
+
+            function updateLegend(){
+                const list = $('chartContainer');
+                list.innerHTML = '';
+                if (!typeDist.length) {
+                    list.innerHTML = '<div class="status-note">Sin registros para el filtro actual.</div>';
+                    return;
+                }
+                const maxValue = Math.max(...typeDist.map(item => item.value), 1);
+                typeDist.forEach((item, idx) => {
+                    const color = PALETTE[Math.min(idx + 1, PALETTE.length - 1)];
+                    const width = (item.value / maxValue) * 100;
+                    const row = document.createElement('div');
+                    row.className = 'chart-row';
+                    row.innerHTML = `
+                        <div class="chart-label">
+                            <span>${escapeHtml(item.name)}</span>
+                            <span>${fmt(item.value)}</span>
+                        </div>
+                        <div class="chart-bar-wrap">
+                            <div class="chart-bar" style="width:${width}%; background:${color};"></div>
+                        </div>
+                    `;
+                    list.appendChild(row);
+                });
+            }
+
+            function updateKpis(){
+                const total = filteredPoints.length;
+                $('kpiTotal').textContent = fmt(total);
+                const validEntries = Object.entries(countsByComuna)
+                    .filter(([k,v]) => k && k !== '0' && v > 0)
+                    .sort((a,b) => a[1] - b[1] || Number(a[0]) - Number(b[0]));
+
+                const sexoStats = {f:0,m:0,sd:0};
+                filteredPoints.forEach(feature => {
+                    const sx = norm(getProp(feature, fields.sexo));
+                    if (['f','femenino','femenina','mujer'].includes(sx)) sexoStats.f += 1;
+                    else if (['m','masculino','hombre'].includes(sx)) sexoStats.m += 1;
+                    else sexoStats.sd += 1;
+                });
+
+                if (!validEntries.length) {
+                    $('kpiMax').textContent = '-';
+                    $('kpiMin').textContent = '-';
+                    $('kpiSexo').innerHTML = '-';
+                    $('kpiBarriosLabel').textContent = filterEls.comuna.value
+                        ? `Top barrios (Comuna ${filterEls.comuna.value})`
+                        : 'Top barrios (general)';
+                    $('kpiBarrios').innerHTML = '-';
+                    return;
+                }
+                const min = validEntries[0];
+                const max = validEntries[validEntries.length - 1];
+                $('kpiMax').textContent = `C${max[0]} · ${fmt(max[1])}`;
+                $('kpiMin').textContent = `C${min[0]} · ${fmt(min[1])}`;
+
+                const sexoRows = [];
+                if (sexoStats.f > 0) sexoRows.push(`<div><span>Femenino</span><span>${fmt(sexoStats.f)}</span></div>`);
+                if (sexoStats.m > 0) sexoRows.push(`<div><span>Masculino</span><span>${fmt(sexoStats.m)}</span></div>`);
+                if (sexoStats.sd > 0) sexoRows.push(`<div><span>No binarie / sin dato</span><span>${fmt(sexoStats.sd)}</span></div>`);
+                $('kpiSexo').innerHTML = sexoRows.length ? sexoRows.join('') : '-';
+
+                const topBarrios = computeBarriosTop();
+                $('kpiBarriosLabel').textContent = filterEls.comuna.value
+                    ? `Top barrios (Comuna ${filterEls.comuna.value})`
+                    : 'Top barrios (general)';
+                $('kpiBarrios').innerHTML = topBarrios.length
+                    ? topBarrios.map(([name, val]) => `<div><span>${escapeHtml(name)}</span><span>${fmt(val)}</span></div>`).join('')
+                    : '-';
+            }
+
+            function updateStatus(){
+                const parts = [];
+                if (filterEls.comuna.value) parts.push(`Comuna ${filterEls.comuna.value}`);
+                if (filterEls.rango.value) parts.push(filterEls.rango.value);
+                if (filterEls.junta.value) parts.push(filterEls.junta.value);
+                if (filterEls.sexo.value) parts.push(filterEls.sexo.value);
+                $('statusNote').textContent = parts.length
+                    ? `Filtro activo: ${parts.join(' · ')}`
+                    : 'Sin filtros activos. Se muestran todos los casos del mapa.';
+            }
+
+            function updateStyles(){
+                const values = Object.values(countsByComuna);
+                const breaks = getBreaks(values);
+
+                pointLayer.setStyle(function(feature, resolution){
+                    if (!matches(feature)) return null;
+                    return typeof originalPointStyle === 'function'
+                        ? originalPointStyle(feature, resolution)
+                        : originalPointStyle;
+                });
+
+                comunaLayer.setStyle(function(feature){
+                    const code = comunaCodeFromPolygon(feature);
+                    const total = countsByComuna[code] || 0;
+                    const onlyComuna = filterEls.comuna.value;
+                    const showLabel = code && code !== '0' && (!onlyComuna || code === onlyComuna);
+                    const label = showLabel ? `Comuna ${code}\n${fmt(total)}` : '';
+                    return chunkStyle(fillForValue(total, breaks), label, feature);
+                });
+            }
+
+            function fitToCurrentSelection(){
+                try {
+                    const comunaSelected = filterEls.comuna.value;
+                    const visibleComunas = allComunas.filter(feature => {
+                        const code = comunaCodeFromPolygon(feature);
+                        if (!code || code === '0') return false;
+                        if (comunaSelected && code !== comunaSelected) return false;
+                        return (countsByComuna[code] || 0) > 0;
+                    });
+
+                    if (!visibleComunas.length) return;
+
+                    let extent = ol.extent.createEmpty();
+                    visibleComunas.forEach(feature => ol.extent.extend(extent, feature.getGeometry().getExtent()));
+
+                    if (ol.extent.isEmpty(extent)) return;
+
+                    map.getView().fit(extent, {
+                        padding: comunaSelected ? [20, 290, 20, 290] : [8, 260, 8, 300],
+                        maxZoom: comunaSelected ? 14.2 : 12.2,
+                        duration: 500
+                    });
+                } catch (e) {}
+            }
+
+            function applyFilters(){
+                filteredPoints = allPoints.filter(matches);
+                computeCounts();
+                updateKpis();
+                updateLegend();
+                updateStyles();
+                updateStatus();
+                pointLayer.changed();
+                comunaLayer.changed();
+                fitToCurrentSelection();
+            }
+
+            function clearFilters(){
+                Object.values(filterEls).forEach(el => el.value = '');
+                applyFilters();
+            }
+
+            function exportSummary(){
+                const rows = [[
+                    'comuna',
+                    'total_mostrado',
+                    'barrios',
+                    'detalle_barrios',
+                    'filtro_rango',
+                    'filtro_junta',
+                    'filtro_sexo'
+                ]];
+                const valid = Object.keys(countsByComuna)
+                    .filter(k => k && k !== '0')
+                    .sort((a,b) => Number(a) - Number(b));
+
+                valid.forEach(code => {
+                    const barrioCount = {};
+
+                    filteredPoints.forEach(f => {
+                        if (pointComuna(f) === code) {
+                            const b = getProp(f, fields.barrio) || 'Sin dato';
+                            barrioCount[b] = (barrioCount[b] || 0) + 1;
+                        }
+                    });
+
+                    const detalleBarrios = Object.entries(barrioCount)
+                        .sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))
+                        .map(([b,v]) => `${b}: ${v}`)
+                        .join(' | ');
+
+                    rows.push([
+                        `Comuna ${code}`,
+                        countsByComuna[code] || 0,
+                        (COMUNA_BARRIOS[code] || []).join(' | '),
+                        detalleBarrios || 'Sin datos',
+                        filterEls.rango.value || 'Todos',
+                        filterEls.junta.value || 'Todas',
+                        filterEls.sexo.value || 'Todos'
+                    ]);
+                });
+
+                if (rows.length === 1) rows.push(['Sin datos',0,'','Sin datos','','','']);
+                downloadCSV('resumen_cud_filtrado.csv', rows);
+            }
+
+            const popupEl = $('popup');
+            const popupContent = $('popup-content');
+            const closer = $('popup-closer');
+            const overlay = new ol.Overlay({
+                element: popupEl,
+                autoPan: { animation: { duration: 250 } }
+            });
+            map.addOverlay(overlay);
+            closer.onclick = function(){ overlay.setPosition(undefined); closer.blur(); return false; };
+
+            function renderComunaPopup(feature, coordinate){
+                const code = comunaCodeFromPolygon(feature);
+                const total = countsByComuna[code] || 0;
+                const barrios = COMUNA_BARRIOS[code] || [];
+                const byJunta = {};
+                filteredPoints.forEach(f => {
+                    if (pointComuna(f) === code) {
+                        const key = getProp(f, fields.junta) || 'Sin dato';
+                        byJunta[key] = (byJunta[key] || 0) + 1;
+                    }
+                });
+
+                const rows = Object.entries(byJunta)
+                    .sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'));
+
+                const tableRows = rows.map(([name, value]) => `
+                        <tr>
+                            <td>${escapeHtml(name)}</td>
+                            <td>${fmt(value)}</td>
+                        </tr>
+                    `).join('') || `
+                        <tr>
+                            <td>Sin registros</td>
+                            <td>0</td>
+                        </tr>
+                    `;
+
+                popupContent.innerHTML = `
+                    <div class="popup-title">Comuna ${escapeHtml(code || '-')}</div>
+                    <div class="popup-subtitle">${escapeHtml(barrios.join(', ') || 'Sin información')}</div>
+                    <table class="popup-table">
+                        <tr>
+                            <td>Total mostrado</td>
+                            <td>${fmt(total)}</td>
+                        </tr>
+                        ${tableRows}
+                    </table>
+                `;
+                overlay.setPosition(coordinate);
+            }
+
+            map.on('singleclick', function(evt){
+                let handled = false;
+                map.forEachFeatureAtPixel(evt.pixel, function(feature, layer){
+                    if (handled) return true;
+                    if (layer === comunaLayer) {
+                        renderComunaPopup(feature, evt.coordinate);
+                        handled = true;
+                        return true;
+                    }
+                });
+                if (!handled) overlay.setPosition(undefined);
+            });
+
+            $('btnApply').addEventListener('click', applyFilters);
+            $('btnClear').addEventListener('click', clearFilters);
+            $('btnExportSummary').addEventListener('click', exportSummary);
+
+            rebuildFilterOptions();
+            applyFilters();
+            setTimeout(() => fitToCurrentSelection(), 120);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+    </script>
+</body>
+</html>
