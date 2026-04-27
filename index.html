@@ -86,6 +86,23 @@
         .popup-table{ font-size:12px; border-collapse:collapse; width:100%; }
         .popup-table td{ padding:3px 4px; border-bottom:1px solid #eee; }
         .popup-table td:first-child{ color:var(--ink); font-weight:bold; }
+        .popup-section-title{
+            margin-top:10px; margin-bottom:5px; padding-top:8px;
+            border-top:1px solid #e8edf6; font-size:11px; font-weight:700;
+            color:var(--accent); text-transform:uppercase; letter-spacing:.25px;
+        }
+        .popup-mini-row{
+            display:flex; justify-content:space-between; gap:12px;
+            font-size:12px; padding:4px 0; border-bottom:1px solid #eef2f8;
+        }
+        .popup-mini-row:last-child{ border-bottom:none; }
+        .popup-mini-name{ color:var(--ink); font-weight:600; }
+        .popup-mini-value{ color:var(--accent); font-weight:700; white-space:nowrap; }
+        .popup-filter-chip{
+            display:inline-block; margin:2px 4px 2px 0; padding:3px 7px;
+            border-radius:999px; background:#eef4ff; color:#0B1F5B;
+            border:1px solid #d9e6ff; font-size:10px; font-weight:700;
+        }
         .barrio-note{ font-size:11px; color:#6b778c; margin-top:6px; line-height:1.35; }
         .ol-zoom{
             top:auto !important; left:auto !important; right:12px !important; bottom:20px !important;
@@ -627,6 +644,43 @@
             downloadCSV('resumen_cud_filtrado.csv', out);
         }
 
+        function getActiveFilterChips(){
+            const chips = [];
+            if (filterEls.comuna.value) chips.push('Comuna ' + filterEls.comuna.value);
+            if (filterEls.barrio.value) chips.push(filterEls.barrio.value);
+            if (filterEls.rango.value) chips.push(filterEls.rango.value);
+            if (filterEls.junta.value) chips.push(filterEls.junta.value);
+            if (filterEls.estado.value) chips.push(filterEls.estado.value);
+            if (filterEls.sexo.value) chips.push(filterEls.sexo.value);
+            return chips;
+        }
+
+        function renderFilterChips(){
+            const chips = getActiveFilterChips();
+            if (!chips.length) return '<span class="popup-filter-chip">Sin filtros activos</span>';
+            return chips.map(c => `<span class="popup-filter-chip">${escapeHtml(c)}</span>`).join('');
+        }
+
+        function summarizeRowsBy(rowsList, fieldName){
+            const counts = {};
+            rowsList.forEach(r => {
+                const label = isNoData(r[fieldName]) ? 'Sin dato' : r[fieldName];
+                counts[label] = (counts[label] || 0) + rowValue(r);
+            });
+            return Object.entries(counts)
+                .filter(([, value]) => value > 0)
+                .sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'));
+        }
+
+        function renderDistributionRows(items, total){
+            if (!items.length) {
+                return '<div class="popup-mini-row"><span class="popup-mini-name">Sin registros</span><span class="popup-mini-value">0</span></div>';
+            }
+            return items.map(([name, value]) => {
+                return `<div class="popup-mini-row"><span class="popup-mini-name">${escapeHtml(name)}</span><span class="popup-mini-value">${fmt(value)}</span></div>`;
+            }).join('');
+        }
+
         function renderComunaPopup(feature, coordinate){
             const code = comunaCodeFromFeature(feature);
             const total = countsByComuna[code] || 0;
@@ -644,6 +698,7 @@
             $('popup-content').innerHTML = `
                 <div class="popup-title">Comuna ${escapeHtml(code || '-')}</div>
                 <div class="popup-subtitle">${escapeHtml(barrios.join(', ') || 'Sin información')}</div>
+                <div style="margin-bottom:8px;">${renderFilterChips()}</div>
                 <table class="popup-table">
                     <tr><td>Total mostrado</td><td>${fmt(total)}</td></tr>
                     <tr><td>Estado CUD</td><td>${escapeHtml(filterEls.estado.value || 'Todos')}</td></tr>
@@ -693,19 +748,30 @@
         function renderBarrioPopup(feature, coordinate){
             const barrio = barrioNameFromFeature(feature);
             const code = barrioComunaFromFeature(feature);
-            let total = 0;
-            filteredRows.forEach(r => {
-                if (code && r.comuna !== code) return;
-                if (norm(r.barrio) !== norm(barrio)) return;
-                total += rowValue(r);
+            const areaRows = filteredRows.filter(r => {
+                if (code && r.comuna !== code) return false;
+                return norm(r.barrio) === norm(barrio);
             });
+            const total = areaRows.reduce((acc, r) => acc + rowValue(r), 0);
+            const byJunta = summarizeRowsBy(areaRows, 'junta_discapacidad');
+            const bySexo = summarizeRowsBy(areaRows, 'sexo');
+            const estadoLabel = filterEls.estado.value || 'Todos';
+            const rangoLabel = filterEls.rango.value || 'Todos';
+
             $('popup-content').innerHTML = `
                 <div class="popup-title">${escapeHtml(barrio || 'Barrio')}</div>
                 <div class="popup-subtitle">Comuna ${escapeHtml(code || '-')}</div>
+                <div style="margin-bottom:8px;">${renderFilterChips()}</div>
                 <table class="popup-table">
                     <tr><td>Total mostrado</td><td>${fmt(total)}</td></tr>
-                    <tr><td>Estado CUD</td><td>${escapeHtml(filterEls.estado.value || 'Todos')}</td></tr>
+                    <tr><td>Estado CUD</td><td>${escapeHtml(estadoLabel)}</td></tr>
+                    <tr><td>Rango etario</td><td>${escapeHtml(rangoLabel)}</td></tr>
                 </table>
+                <div class="popup-section-title">Tipo / junta de discapacidad</div>
+                ${renderDistributionRows(byJunta, total)}
+                <div class="popup-section-title">Distribución por sexo</div>
+                ${renderDistributionRows(bySexo, total)}
+                <div class="barrio-note">El detalle respeta los filtros activos del panel.</div>
             `;
             overlay.setPosition(coordinate);
         }
