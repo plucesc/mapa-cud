@@ -1,4 +1,4 @@
-!doctype html>
+<!doctype html>
 <html lang="es">
 <head>
     <meta charset="utf-8">
@@ -72,19 +72,6 @@
         .btn-primary{ background:#0B1F5B; color:white; }
         .btn-neutral{ background:#f3f4f6; color:#333; border:1px solid #d9dde3; }
         .status-note{ margin-top:10px; font-size:11px; color:#6b778c; line-height:1.35; }
-        .chart-panel{
-            position:absolute; left:12px; bottom:20px; z-index:1000;
-            background:var(--panel-bg); padding:12px 14px; border-radius:10px;
-            box-shadow:var(--shadow); width:380px; border:1px solid rgba(11,31,91,0.06);
-        }
-        .chart-title{ font-size:14px; font-weight:bold; color:var(--accent); margin-bottom:10px; }
-        .chart-row{ margin-bottom:8px; }
-        .chart-label{
-            font-size:11px; color:var(--ink); margin-bottom:3px;
-            display:flex; justify-content:space-between; gap:10px;
-        }
-        .chart-bar-wrap{ width:100%; height:14px; background:#eef2f8; border-radius:999px; overflow:hidden; }
-        .chart-bar{ height:100%; border-radius:999px; }
         .ol-popup {
             position: absolute; background-color: rgba(255,255,255,.98);
             box-shadow: var(--shadow); padding: 14px; border-radius: 10px;
@@ -99,6 +86,7 @@
         .popup-table{ font-size:12px; border-collapse:collapse; width:100%; }
         .popup-table td{ padding:3px 4px; border-bottom:1px solid #eee; }
         .popup-table td:first-child{ color:var(--ink); font-weight:bold; }
+        .barrio-note{ font-size:11px; color:#6b778c; margin-top:6px; line-height:1.35; }
         .ol-zoom{
             top:auto !important; left:auto !important; right:12px !important; bottom:20px !important;
             background:transparent !important; padding:0 !important; z-index:2000 !important;
@@ -113,7 +101,6 @@
             .top-left-stack{ width:calc(100% - 24px); }
             .top-right-stack{ top:auto; right:12px; left:12px; width:auto; }
             .filter-panel{ margin-top:370px; }
-            .chart-panel{ left:12px; width:calc(100% - 36px); bottom:72px; }
         }
     </style>
 </head>
@@ -129,7 +116,7 @@
         <div class="header-panel panel-box">
             <div class="header-kicker">BA Discapacidad · DGINCD · Visualización territorial</div>
             <div class="header-title">Mapa CUD por comuna</div>
-            <div class="header-subtitle">Consulta interactiva por comuna, rango etario, junta de discapacidad, sexo y barrio</div>
+            <div class="header-subtitle">Consulta interactiva por comuna, barrio, estado CUD, rango etario, junta de discapacidad y sexo</div>
             <div class="header-source">Gobierno de la Ciudad Autónoma de Buenos Aires</div>
         </div>
         <div class="info-panel panel-box">
@@ -172,6 +159,13 @@
             <label for="filterJunta">Junta discapacidad</label>
             <select id="filterJunta"><option value="">Todas</option></select>
 
+            <label for="filterEstado">Estado CUD</label>
+            <select id="filterEstado">
+                <option value="">Todos</option>
+                <option value="CUD Activo">CUD Activo</option>
+                <option value="CUD Vencido">CUD Vencido</option>
+            </select>
+
             <label for="filterSexo">Sexo</label>
             <select id="filterSexo"><option value="">Todos</option></select>
 
@@ -186,13 +180,9 @@
         </div>
     </div>
 
-    <div class="chart-panel panel-box">
-        <div class="chart-title">Distribución por junta de discapacidad</div>
-        <div id="chartContainer"></div>
-    </div>
-
     <script src="./resources/ol.js"></script>
-    <script src="./layers/comunas_1.js"></script>
+    <script src="./layers/comunas_2.js"></script>
+    <script src="./layers/barrios_1.js"></script>
 
     <script>
     (function(){
@@ -239,6 +229,7 @@
         let countsByComuna = {};
         let typeDist = [];
         let comunaLayer = null;
+        let barrioLayer = null;
         let map = null;
         let overlay = null;
 
@@ -246,6 +237,7 @@
             comuna: $('filterComuna'),
             rango: $('filterRango'),
             junta: $('filterJunta'),
+            estado: $('filterEstado'),
             sexo: $('filterSexo'),
             barrio: $('filterBarrio')
         };
@@ -288,15 +280,25 @@
                     const iJunta = idx('junta_discapacidad');
                     const iBarrio = idx('barrio');
                     const iTotal = idx('total');
+                    const iActivos = idx('cud_activos');
+                    const iVencidos = idx('cud_vencidos');
+                    const parseNum = (v) => Number(String(v ?? '0').replace(/\./g,'').replace(',','.')) || 0;
 
-                    rows = table.slice(1).map(r => ({
-                        comuna: normCode(r[iComuna]),
-                        rango_etario: clean(r[iRango]),
-                        sexo: clean(r[iSexo]),
-                        junta_discapacidad: clean(r[iJunta]),
-                        barrio: clean(r[iBarrio]),
-                        total: Number(String(r[iTotal] ?? '0').replace(/\./g,'').replace(',','.')) || 0
-                    })).filter(r => r.comuna && r.comuna !== '0' && r.total > 0);
+                    rows = table.slice(1).map(r => {
+                        const total = parseNum(r[iTotal]);
+                        const activos = iActivos >= 0 ? parseNum(r[iActivos]) : total;
+                        const vencidos = iVencidos >= 0 ? parseNum(r[iVencidos]) : 0;
+                        return {
+                            comuna: normCode(r[iComuna]),
+                            rango_etario: clean(r[iRango]),
+                            sexo: clean(r[iSexo]),
+                            junta_discapacidad: clean(r[iJunta]),
+                            barrio: clean(r[iBarrio]),
+                            total: total,
+                            cud_activos: activos,
+                            cud_vencidos: vencidos
+                        };
+                    }).filter(r => r.comuna && r.comuna !== '0' && r.total > 0);
                 });
         }
 
@@ -323,21 +325,29 @@
             populateSelect(filterEls.barrio, uniqSorted(rows.map(r => r.barrio)), 'Todos');
         }
 
+        function rowValue(row){
+            if (filterEls.estado.value === 'CUD Activo') return Number(row.cud_activos || 0);
+            if (filterEls.estado.value === 'CUD Vencido') return Number(row.cud_vencidos || 0);
+            return Number(row.total || 0);
+        }
+
         function rowMatches(row){
             return (!filterEls.comuna.value || row.comuna === filterEls.comuna.value)
                 && (!filterEls.rango.value || row.rango_etario === filterEls.rango.value)
                 && (!filterEls.junta.value || row.junta_discapacidad === filterEls.junta.value)
                 && (!filterEls.sexo.value || row.sexo === filterEls.sexo.value)
-                && (!filterEls.barrio.value || row.barrio === filterEls.barrio.value);
+                && (!filterEls.barrio.value || row.barrio === filterEls.barrio.value)
+                && rowValue(row) > 0;
         }
 
         function computeCounts(){
             countsByComuna = {};
             const byJunta = {};
             filteredRows.forEach(r => {
-                countsByComuna[r.comuna] = (countsByComuna[r.comuna] || 0) + r.total;
+                const value = rowValue(r);
+                countsByComuna[r.comuna] = (countsByComuna[r.comuna] || 0) + value;
                 const j = r.junta_discapacidad || 'Sin dato';
-                byJunta[j] = (byJunta[j] || 0) + r.total;
+                byJunta[j] = (byJunta[j] || 0) + value;
             });
             typeDist = Object.entries(byJunta)
                 .map(([name, value]) => ({name, value}))
@@ -348,7 +358,7 @@
             const counts = {};
             filteredRows.forEach(r => {
                 if (isNoData(r.barrio)) return;
-                counts[r.barrio] = (counts[r.barrio] || 0) + r.total;
+                counts[r.barrio] = (counts[r.barrio] || 0) + rowValue(r);
             });
             return Object.entries(counts)
                 .sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))
@@ -460,10 +470,11 @@
                 return chunkStyle(fill, label);
             });
             comunaLayer.changed();
+            if (barrioLayer) barrioLayer.changed();
         }
 
         function updateKpis(){
-            const total = filteredRows.reduce((acc,r) => acc + r.total, 0);
+            const total = filteredRows.reduce((acc,r) => acc + rowValue(r), 0);
             $('kpiTotal').textContent = fmt(total);
 
             const validEntries = Object.entries(countsByComuna)
@@ -485,7 +496,7 @@
             const sexoStats = {};
             filteredRows.forEach(r => {
                 const label = isNoData(r.sexo) ? 'Sin dato' : r.sexo;
-                sexoStats[label] = (sexoStats[label] || 0) + r.total;
+                sexoStats[label] = (sexoStats[label] || 0) + rowValue(r);
             });
             $('kpiSexo').innerHTML = Object.entries(sexoStats)
                 .sort((a,b)=>b[1]-a[1])
@@ -500,31 +511,8 @@
                 ? topBarrios.map(([name,val]) => `<div><span>${escapeHtml(name)}</span><span>${fmt(val)}</span></div>`).join('')
                 : '-';
         }
-
         function updateLegend(){
-            const list = $('chartContainer');
-            list.innerHTML = '';
-            if (!typeDist.length) {
-                list.innerHTML = '<div class="status-note">Sin registros para el filtro actual.</div>';
-                return;
-            }
-            const maxValue = Math.max(...typeDist.map(item => item.value), 1);
-            typeDist.forEach((item, idx) => {
-                const color = PALETTE[Math.min(idx + 1, PALETTE.length - 1)];
-                const width = (item.value / maxValue) * 100;
-                const row = document.createElement('div');
-                row.className = 'chart-row';
-                row.innerHTML = `
-                    <div class="chart-label">
-                        <span>${escapeHtml(item.name)}</span>
-                        <span>${fmt(item.value)}</span>
-                    </div>
-                    <div class="chart-bar-wrap">
-                        <div class="chart-bar" style="width:${width}%; background:${color};"></div>
-                    </div>
-                `;
-                list.appendChild(row);
-            });
+            // Tarjeta de distribución por junta eliminada por solicitud.
         }
 
         function updateStatus(){
@@ -532,6 +520,7 @@
             if (filterEls.comuna.value) parts.push(`Comuna ${filterEls.comuna.value}`);
             if (filterEls.rango.value) parts.push(filterEls.rango.value);
             if (filterEls.junta.value) parts.push(filterEls.junta.value);
+            if (filterEls.estado.value) parts.push(filterEls.estado.value);
             if (filterEls.sexo.value) parts.push(filterEls.sexo.value);
             if (filterEls.barrio.value) parts.push(filterEls.barrio.value);
             $('statusNote').textContent = parts.length
@@ -544,19 +533,36 @@
                 const selectedComuna = filterEls.comuna.value;
                 const selectedBarrio = filterEls.barrio.value;
                 const hasAreaFilter = Boolean(selectedComuna || selectedBarrio);
-                const source = comunaLayer.getSource();
-                const visible = source.getFeatures().filter(f => {
-                    const code = comunaCodeFromFeature(f);
-                    if (!code || code === '0') return false;
-                    if (selectedComuna && code !== selectedComuna) return false;
-                    return (countsByComuna[code] || 0) > 0;
-                });
-                if (!visible.length) return;
                 const extent = ol.extent.createEmpty();
-                visible.forEach(f => ol.extent.extend(extent, f.getGeometry().getExtent()));
+                let usedBarrioExtent = false;
+
+                if (barrioLayer && selectedBarrio) {
+                    barrioLayer.getSource().getFeatures().forEach(f => {
+                        const code = barrioComunaFromFeature(f);
+                        const barrio = barrioNameFromFeature(f);
+                        if (selectedComuna && code !== selectedComuna) return;
+                        if (norm(barrio) !== norm(selectedBarrio)) return;
+                        ol.extent.extend(extent, f.getGeometry().getExtent());
+                        usedBarrioExtent = true;
+                    });
+                }
+
+                if (!usedBarrioExtent) {
+                    const source = comunaLayer.getSource();
+                    const visible = source.getFeatures().filter(f => {
+                        const code = comunaCodeFromFeature(f);
+                        if (!code || code === '0') return false;
+                        if (selectedComuna && code !== selectedComuna) return false;
+                        return (countsByComuna[code] || 0) > 0;
+                    });
+                    if (!visible.length) return;
+                    visible.forEach(f => ol.extent.extend(extent, f.getGeometry().getExtent()));
+                }
+
+                if (ol.extent.isEmpty(extent)) return;
                 map.getView().fit(extent, {
                     padding: hasAreaFilter ? [24,310,24,310] : [8,260,8,360],
-                    maxZoom: hasAreaFilter ? 14.4 : 12.2,
+                    maxZoom: usedBarrioExtent ? 15.2 : (hasAreaFilter ? 14.4 : 12.2),
                     duration: 450
                 });
             } catch(e){}
@@ -593,13 +599,13 @@
         function exportSummary(){
             const out = [[
                 'comuna','total_mostrado','barrios_oficiales','detalle_barrios',
-                'filtro_rango','filtro_junta','filtro_sexo','filtro_barrio'
+                'filtro_rango','filtro_junta','filtro_estado_cud','filtro_sexo','filtro_barrio'
             ]];
             Object.keys(countsByComuna).filter(k=>k && k!=='0').sort((a,b)=>Number(a)-Number(b)).forEach(code => {
                 const barrioCount = {};
                 filteredRows.forEach(r => {
                     if (r.comuna !== code || isNoData(r.barrio)) return;
-                    barrioCount[r.barrio] = (barrioCount[r.barrio] || 0) + r.total;
+                    barrioCount[r.barrio] = (barrioCount[r.barrio] || 0) + rowValue(r);
                 });
                 const detalleBarrios = Object.entries(barrioCount)
                     .sort((a,b)=>b[1]-a[1] || a[0].localeCompare(b[0], 'es'))
@@ -612,11 +618,12 @@
                     detalleBarrios || 'Sin datos',
                     filterEls.rango.value || 'Todos',
                     filterEls.junta.value || 'Todas',
+                    filterEls.estado.value || 'Todos',
                     filterEls.sexo.value || 'Todos',
                     filterEls.barrio.value || 'Todos'
                 ]);
             });
-            if (out.length === 1) out.push(['Sin datos',0,'','Sin datos','','','','']);
+            if (out.length === 1) out.push(['Sin datos',0,'','Sin datos','','','','','']);
             downloadCSV('resumen_cud_filtrado.csv', out);
         }
 
@@ -628,7 +635,7 @@
             filteredRows.forEach(r => {
                 if (r.comuna !== code) return;
                 const key = r.junta_discapacidad || 'Sin dato';
-                byJunta[key] = (byJunta[key] || 0) + r.total;
+                byJunta[key] = (byJunta[key] || 0) + rowValue(r);
             });
             const tableRows = Object.entries(byJunta)
                 .sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))
@@ -639,21 +646,98 @@
                 <div class="popup-subtitle">${escapeHtml(barrios.join(', ') || 'Sin información')}</div>
                 <table class="popup-table">
                     <tr><td>Total mostrado</td><td>${fmt(total)}</td></tr>
+                    <tr><td>Estado CUD</td><td>${escapeHtml(filterEls.estado.value || 'Todos')}</td></tr>
                     ${tableRows}
+                </table>
+                <div class="barrio-note">Barrios oficiales: ${escapeHtml(barrios.join(', ') || 'Sin información')}</div>
+            `;
+            overlay.setPosition(coordinate);
+        }
+
+
+        function barrioNameFromFeature(feature){
+            return clean(feature.get('barrio') ?? feature.get('BARRIO') ?? feature.get('nombre') ?? feature.get('NOMBRE') ?? feature.get('barrios') ?? feature.get('BARRIOS'));
+        }
+
+        function barrioComunaFromFeature(feature){
+            return normCode(feature.get('comuna') ?? feature.get('COMUNA') ?? feature.get('Comuna') ?? feature.get('id_comuna') ?? feature.get('ID_COMUNA'));
+        }
+
+        function createBarrioStyle(feature, resolution){
+            const selectedComuna = filterEls.comuna.value;
+            const selectedBarrio = filterEls.barrio.value;
+
+            if (!selectedComuna && !selectedBarrio) return null;
+
+            const code = barrioComunaFromFeature(feature);
+            const barrio = barrioNameFromFeature(feature);
+            const matchesComuna = !selectedComuna || code === selectedComuna;
+            const matchesBarrio = !selectedBarrio || norm(barrio) === norm(selectedBarrio);
+
+            if (!matchesComuna || !matchesBarrio) return null;
+
+            const showText = resolution < 28; // aprox. zoom 13 o mayor
+            const isSpecificBarrio = Boolean(selectedBarrio);
+
+            return [new ol.style.Style({
+                fill: new ol.style.Fill({ color: isSpecificBarrio ? 'rgba(11,31,91,0.08)' : 'rgba(255,255,255,0.015)' }),
+                stroke: new ol.style.Stroke({
+                    color: isSpecificBarrio ? '#0B1F5B' : 'rgba(11,31,91,0.90)',
+                    width: isSpecificBarrio ? 2.2 : 1.4,
+                    lineDash: isSpecificBarrio ? undefined : [5,4]
+                }),
+                text: showText && barrio ? createTextStyle(barrio) : undefined
+            })];
+        }
+
+        function renderBarrioPopup(feature, coordinate){
+            const barrio = barrioNameFromFeature(feature);
+            const code = barrioComunaFromFeature(feature);
+            let total = 0;
+            filteredRows.forEach(r => {
+                if (code && r.comuna !== code) return;
+                if (norm(r.barrio) !== norm(barrio)) return;
+                total += rowValue(r);
+            });
+            $('popup-content').innerHTML = `
+                <div class="popup-title">${escapeHtml(barrio || 'Barrio')}</div>
+                <div class="popup-subtitle">Comuna ${escapeHtml(code || '-')}</div>
+                <table class="popup-table">
+                    <tr><td>Total mostrado</td><td>${fmt(total)}</td></tr>
+                    <tr><td>Estado CUD</td><td>${escapeHtml(filterEls.estado.value || 'Todos')}</td></tr>
                 </table>
             `;
             overlay.setPosition(coordinate);
         }
 
+        function initBarrioLayer(){
+            if (typeof json_barrios_1 === 'undefined') return;
+            try {
+                const barrioFeatures = new ol.format.GeoJSON().readFeatures(json_barrios_1, {
+                    dataProjection: 'EPSG:4326',
+                    featureProjection:'EPSG:3857'
+                });
+                barrioLayer = new ol.layer.Vector({
+                    source: new ol.source.Vector({features: barrioFeatures}),
+                    style: createBarrioStyle,
+                    zIndex: 20
+                });
+                map.addLayer(barrioLayer);
+            } catch(e) {
+                console.warn('No se pudo cargar la capa de barrios:', e);
+            }
+        }
+
         function initMap(){
-            const features = new ol.format.GeoJSON().readFeatures(json_comunas_1, {
+            const features = new ol.format.GeoJSON().readFeatures(json_comunas_2, {
                 dataProjection: 'EPSG:4326',
                 featureProjection:'EPSG:3857'
             });
 
             comunaLayer = new ol.layer.Vector({
                 source: new ol.source.Vector({features: features}),
-                style: null
+                style: null,
+                zIndex: 10
             });
 
             map = new ol.Map({
@@ -667,6 +751,8 @@
                     zoom: 11
                 })
             });
+
+            initBarrioLayer();
 
             overlay = new ol.Overlay({
                 element: $('popup'),
@@ -683,6 +769,11 @@
             map.on('singleclick', function(evt){
                 let handled = false;
                 map.forEachFeatureAtPixel(evt.pixel, function(feature, layer){
+                    if (layer === barrioLayer) {
+                        renderBarrioPopup(feature, evt.coordinate);
+                        handled = true;
+                        return true;
+                    }
                     if (layer === comunaLayer) {
                         renderComunaPopup(feature, evt.coordinate);
                         handled = true;
@@ -698,8 +789,8 @@
                 $('statusNote').textContent = 'No se cargó OpenLayers. Verificá resources/ol.js.';
                 return;
             }
-            if (typeof json_comunas_1 === 'undefined') {
-                $('statusNote').textContent = 'No se cargó layers/comunas_1.js.';
+            if (typeof json_comunas_2 === 'undefined') {
+                $('statusNote').textContent = 'No se cargó layers/comunas_2.js.';
                 return;
             }
             initMap();
