@@ -183,6 +183,12 @@
                 <option value="CUD Vencido">CUD Vencido</option>
             </select>
 
+            <label for="filterOrientacion">Orientacion prestacional</label>
+            <select id="filterOrientacion"><option value="">Todas</option></select>
+
+            <label for="filterCobertura">Cobertura de salud</label>
+            <select id="filterCobertura"><option value="">Todas</option></select>
+
             <label for="filterSexo">Sexo</label>
             <select id="filterSexo"><option value="">Todos</option></select>
 
@@ -255,6 +261,8 @@
             rango: $('filterRango'),
             junta: $('filterJunta'),
             estado: $('filterEstado'),
+            orientacion: $('filterOrientacion'),
+            cobertura: $('filterCobertura'),
             sexo: $('filterSexo'),
             barrio: $('filterBarrio')
         };
@@ -281,42 +289,104 @@
             return out;
         }
 
+        function parseNum(v){
+            return Number(String(v ?? '0').replace(/\./g,'').replace(',','.')) || 0;
+        }
+
+        function estadoCounts(estado, total){
+            const normalized = norm(estado);
+            return {
+                activos: normalized === 'cud activo' ? total : 0,
+                vencidos: normalized === 'cud vencido' ? total : 0
+            };
+        }
+
+        function rowsFromTable(table){
+            const headers = table[0].map(h => norm(h).replace(/\s+/g,'_'));
+            const idx = (name) => headers.indexOf(name);
+            const idxAny = (names) => {
+                for (const name of names) {
+                    const pos = idx(name);
+                    if (pos >= 0) return pos;
+                }
+                return -1;
+            };
+            const iComuna = idx('comuna');
+            const iRango = idx('rango_etario');
+            const iSexo = idx('sexo');
+            const iJunta = idx('junta_discapacidad');
+            const iBarrio = idx('barrio');
+            const iEstado = idx('estado_cud');
+            const iOrientacion = idxAny(['orientacion_prestacional', 'orientación_prestacional']);
+            const iCobertura = idxAny(['cobertura_de_salud', 'cobertura_salud', 'tipo_cobertura']);
+            const iEdad = idx('edad_actual');
+            const iLat = idx('lat_direccion');
+            const iLon = idx('lon_direccion');
+            const iTotal = idx('total');
+            const iActivos = idx('cud_activos');
+            const iVencidos = idx('cud_vencidos');
+
+            rows = table.slice(1).map(r => {
+                const total = iTotal >= 0 ? parseNum(r[iTotal]) : 1;
+                const estado = iEstado >= 0 ? clean(r[iEstado]) : '';
+                const derived = estadoCounts(estado, total);
+                return {
+                    comuna: normCode(r[iComuna]),
+                    rango_etario: clean(r[iRango]),
+                    sexo: clean(r[iSexo]),
+                    junta_discapacidad: clean(r[iJunta]),
+                    barrio: clean(r[iBarrio]),
+                    estado_cud: estado,
+                    orientacion_prestacional: clean(r[iOrientacion]),
+                    cobertura_de_salud: clean(r[iCobertura]),
+                    edad_actual: iEdad >= 0 ? parseNum(r[iEdad]) : 0,
+                    lat_direccion: iLat >= 0 ? parseNum(r[iLat]) : 0,
+                    lon_direccion: iLon >= 0 ? parseNum(r[iLon]) : 0,
+                    total: total,
+                    cud_activos: iActivos >= 0 ? parseNum(r[iActivos]) : derived.activos,
+                    cud_vencidos: iVencidos >= 0 ? parseNum(r[iVencidos]) : derived.vencidos
+                };
+            }).filter(r => r.comuna && r.comuna !== '0' && r.total > 0);
+        }
+
+        function rowsFromEmbeddedGeojson(){
+            if (typeof json_01_base_comunas_mapa_copidis_3 === 'undefined') {
+                throw new Error('No se pudo cargar ni el CSV ni layers/01_base_comunas_mapa_copidis_3.js');
+            }
+            rows = (json_01_base_comunas_mapa_copidis_3.features || []).map(feature => {
+                const p = feature.properties || {};
+                const total = 1;
+                const estado = clean(p.estado_cud);
+                const derived = estadoCounts(estado, total);
+                return {
+                    comuna: normCode(p.comuna),
+                    rango_etario: clean(p.rango_etario),
+                    sexo: clean(p.sexo),
+                    junta_discapacidad: clean(p.junta_discapacidad),
+                    barrio: clean(p.barrio),
+                    estado_cud: estado,
+                    orientacion_prestacional: clean(p.orientacion_prestacional ?? p['orientaciÃ³n_prestacional']),
+                    cobertura_de_salud: clean(p.cobertura_de_salud ?? p.cobertura_salud ?? p.tipo_cobertura),
+                    edad_actual: parseNum(p.edad_actual),
+                    lat_direccion: parseNum(p.lat_direccion),
+                    lon_direccion: parseNum(p.lon_direccion),
+                    total: total,
+                    cud_activos: derived.activos,
+                    cud_vencidos: derived.vencidos
+                };
+            }).filter(r => r.comuna && r.comuna !== '0' && r.total > 0);
+        }
+
         function loadCSV(){
-            return fetch('./data/resumen_comuna_tabla.csv')
+            return fetch('./01_base_comunas_mapa_copidis.csv')
                 .then(r => {
-                    if (!r.ok) throw new Error('No se pudo cargar ./data/resumen_comuna_tabla.csv');
+                    if (!r.ok) throw new Error('No se pudo cargar ./01_base_comunas_mapa_copidis.csv');
                     return r.text();
                 })
                 .then(text => {
-                    const table = parseCSV(text);
-                    const headers = table[0].map(h => norm(h).replace(/\s+/g,'_'));
-                    const idx = (name) => headers.indexOf(name);
-                    const iComuna = idx('comuna');
-                    const iRango = idx('rango_etario');
-                    const iSexo = idx('sexo');
-                    const iJunta = idx('junta_discapacidad');
-                    const iBarrio = idx('barrio');
-                    const iTotal = idx('total');
-                    const iActivos = idx('cud_activos');
-                    const iVencidos = idx('cud_vencidos');
-                    const parseNum = (v) => Number(String(v ?? '0').replace(/\./g,'').replace(',','.')) || 0;
-
-                    rows = table.slice(1).map(r => {
-                        const total = parseNum(r[iTotal]);
-                        const activos = iActivos >= 0 ? parseNum(r[iActivos]) : total;
-                        const vencidos = iVencidos >= 0 ? parseNum(r[iVencidos]) : 0;
-                        return {
-                            comuna: normCode(r[iComuna]),
-                            rango_etario: clean(r[iRango]),
-                            sexo: clean(r[iSexo]),
-                            junta_discapacidad: clean(r[iJunta]),
-                            barrio: clean(r[iBarrio]),
-                            total: total,
-                            cud_activos: activos,
-                            cud_vencidos: vencidos
-                        };
-                    }).filter(r => r.comuna && r.comuna !== '0' && r.total > 0);
-                });
+                    rowsFromTable(parseCSV(text));
+                })
+                .catch(() => rowsFromEmbeddedGeojson());
         }
 
         function uniqSorted(values){
@@ -338,6 +408,8 @@
             populateSelect(filterEls.comuna, uniqSorted(rows.map(r => r.comuna)), 'Todas');
             populateSelect(filterEls.rango, uniqSorted(rows.map(r => r.rango_etario)), 'Todos');
             populateSelect(filterEls.junta, uniqSorted(rows.map(r => r.junta_discapacidad)), 'Todas');
+            populateSelect(filterEls.orientacion, uniqSorted(rows.map(r => r.orientacion_prestacional)), 'Todas');
+            populateSelect(filterEls.cobertura, uniqSorted(rows.map(r => r.cobertura_de_salud)), 'Todas');
             populateSelect(filterEls.sexo, uniqSorted(rows.map(r => r.sexo)), 'Todos');
             populateSelect(filterEls.barrio, uniqSorted(rows.map(r => r.barrio)), 'Todos');
         }
@@ -352,6 +424,8 @@
             return (!filterEls.comuna.value || row.comuna === filterEls.comuna.value)
                 && (!filterEls.rango.value || row.rango_etario === filterEls.rango.value)
                 && (!filterEls.junta.value || row.junta_discapacidad === filterEls.junta.value)
+                && (!filterEls.orientacion.value || row.orientacion_prestacional === filterEls.orientacion.value)
+                && (!filterEls.cobertura.value || row.cobertura_de_salud === filterEls.cobertura.value)
                 && (!filterEls.sexo.value || row.sexo === filterEls.sexo.value)
                 && (!filterEls.barrio.value || row.barrio === filterEls.barrio.value)
                 && rowValue(row) > 0;
@@ -538,6 +612,8 @@
             if (filterEls.rango.value) parts.push(filterEls.rango.value);
             if (filterEls.junta.value) parts.push(filterEls.junta.value);
             if (filterEls.estado.value) parts.push(filterEls.estado.value);
+            if (filterEls.orientacion.value) parts.push(filterEls.orientacion.value);
+            if (filterEls.cobertura.value) parts.push(filterEls.cobertura.value);
             if (filterEls.sexo.value) parts.push(filterEls.sexo.value);
             if (filterEls.barrio.value) parts.push(filterEls.barrio.value);
             $('statusNote').textContent = parts.length
@@ -616,7 +692,7 @@
         function exportSummary(){
             const out = [[
                 'comuna','total_mostrado','barrios_oficiales','detalle_barrios',
-                'filtro_rango','filtro_junta','filtro_estado_cud','filtro_sexo','filtro_barrio'
+                'filtro_rango','filtro_junta','filtro_estado_cud','filtro_orientacion','filtro_cobertura_salud','filtro_sexo','filtro_barrio'
             ]];
             Object.keys(countsByComuna).filter(k=>k && k!=='0').sort((a,b)=>Number(a)-Number(b)).forEach(code => {
                 const barrioCount = {};
@@ -636,11 +712,13 @@
                     filterEls.rango.value || 'Todos',
                     filterEls.junta.value || 'Todas',
                     filterEls.estado.value || 'Todos',
+                    filterEls.orientacion.value || 'Todas',
+                    filterEls.cobertura.value || 'Todas',
                     filterEls.sexo.value || 'Todos',
                     filterEls.barrio.value || 'Todos'
                 ]);
             });
-            if (out.length === 1) out.push(['Sin datos',0,'','Sin datos','','','','','']);
+            if (out.length === 1) out.push(['Sin datos',0,'','Sin datos','','','','','','','']);
             downloadCSV('resumen_cud_filtrado.csv', out);
         }
 
@@ -651,6 +729,8 @@
             if (filterEls.rango.value) chips.push(filterEls.rango.value);
             if (filterEls.junta.value) chips.push(filterEls.junta.value);
             if (filterEls.estado.value) chips.push(filterEls.estado.value);
+            if (filterEls.orientacion.value) chips.push(filterEls.orientacion.value);
+            if (filterEls.cobertura.value) chips.push(filterEls.cobertura.value);
             if (filterEls.sexo.value) chips.push(filterEls.sexo.value);
             return chips;
         }
