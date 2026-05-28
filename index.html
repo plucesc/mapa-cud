@@ -26,11 +26,13 @@
             display:flex; flex-direction:column; gap:10px; width:340px;
         }
         .top-right-stack{
-            position:absolute; top:12px; right:12px; z-index:1000; width:300px;
+            position:absolute; top:12px; right:12px; bottom:12px; z-index:1000; width:360px;
+            display:flex; flex-direction:column; gap:10px; pointer-events:none;
         }
         .panel-box{
             background:var(--panel-bg); border-radius:10px; box-shadow:var(--shadow);
             border:1px solid rgba(11,31,91,0.06);
+            pointer-events:auto;
         }
         .header-panel{ padding:10px 14px; }
         .header-kicker{
@@ -55,19 +57,60 @@
             border-bottom:1px solid #e8edf6; padding:2px 0;
         }
         .info-card-value-multiline div:last-child{ border-bottom:none; }
-        .filter-panel{ padding:14px; }
-        .filter-panel h3{ margin:0 0 8px 0; font-size:15px; color:var(--accent); }
+        .filter-panel{ padding:10px 12px; }
+        .filter-panel h3{ margin:0 0 6px 0; font-size:14px; color:var(--accent); }
         .filter-panel label{
             font-size:12px; font-weight:bold; display:block;
-            margin-top:8px; margin-bottom:3px; color:var(--ink);
+            margin-top:5px; margin-bottom:2px; color:var(--ink);
         }
         .filter-panel select{
-            width:100%; padding:6px; border-radius:6px; border:1px solid #cfd3da;
-            font-size:12px; background:#fff; min-height:34px;
+            width:100%; padding:4px 6px; border-radius:6px; border:1px solid #cfd3da;
+            font-size:11px; background:#fff; min-height:28px;
+        }
+        .filter-grid{
+            display:grid; grid-template-columns:1fr 1fr; gap:5px 8px;
         }
         .filter-panel .btn{
-            margin-top:10px; width:100%; padding:9px 10px; border:none;
-            border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;
+            margin-top:8px; width:100%; padding:7px 8px; border:none;
+            border-radius:6px; font-size:11px; font-weight:600; cursor:pointer;
+        }
+        .filter-actions{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+        .filter-actions .btn-primary:last-child{ grid-column:1 / -1; }
+        .charts-panel{
+            padding:10px 12px; overflow:auto; min-height:0; flex:1;
+        }
+        .charts-title{ font-size:14px; font-weight:bold; color:var(--accent); margin-bottom:8px; }
+        .chart-card{
+            background:#f7f9fc; border:1px solid var(--line); border-radius:8px;
+            padding:8px; margin-bottom:8px;
+        }
+        .chart-card:last-child{ margin-bottom:0; }
+        .chart-title{
+            font-size:11px; font-weight:700; color:var(--ink);
+            margin-bottom:6px; text-transform:uppercase; letter-spacing:.2px;
+        }
+        .chart-row{ display:grid; grid-template-columns:minmax(82px,1fr) 2.1fr 44px; gap:6px; align-items:center; margin:5px 0; }
+        .chart-label{
+            font-size:10px; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+        }
+        .chart-bar-track{ height:9px; border-radius:999px; background:#e8edf6; overflow:hidden; }
+        .chart-bar{ height:100%; border-radius:999px; background:#486889; min-width:2px; }
+        .chart-value{ font-size:10px; color:var(--accent); font-weight:700; text-align:right; }
+        .chart-empty{ font-size:11px; color:#6b778c; }
+        .chart-note{ font-size:10px; color:#6b778c; margin-top:4px; }
+        .chart-toggle{
+            margin-top:6px; padding:4px 7px; border-radius:6px; border:1px solid #cfd8e8;
+            background:#fff; color:var(--accent); font-size:10px; font-weight:700; cursor:pointer;
+        }
+        .chart-card:nth-child(2n) .chart-bar{ background:#7e95a3; }
+        .chart-card:nth-child(3n) .chart-bar{ background:#0B1F5B; }
+        .chart-card:nth-child(4n) .chart-bar{ background:#6f8f72; }
+        .chart-card:nth-child(5n) .chart-bar{ background:#9a6f49; }
+        .chart-card:nth-child(6n) .chart-bar{ background:#7d6f9a; }
+        @media (max-height: 760px){
+            .filter-grid{ grid-template-columns:1fr 1fr; }
+            .filter-panel label{ font-size:11px; }
+            .status-note{ display:none; }
         }
         .btn-primary{ background:#0B1F5B; color:white; }
         .btn-neutral{ background:#f3f4f6; color:#333; border:1px solid #d9dde3; }
@@ -116,8 +159,9 @@
         }
         @media (max-width: 900px){
             .top-left-stack{ width:calc(100% - 24px); }
-            .top-right-stack{ top:auto; right:12px; left:12px; width:auto; }
-            .filter-panel{ margin-top:370px; }
+            .top-right-stack{ top:auto; right:12px; left:12px; bottom:12px; width:auto; max-height:48vh; }
+            .filter-panel{ margin-top:0; }
+            .charts-panel{ max-height:26vh; }
         }
     </style>
 </head>
@@ -201,6 +245,33 @@
 
             <div class="status-note" id="statusNote">Cargando datos...</div>
         </div>
+        <div class="charts-panel panel-box">
+            <div class="charts-title">Gráficos</div>
+            <div class="chart-card">
+                <div class="chart-title">Rango etario</div>
+                <div id="chartRango"></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Junta discapacidad</div>
+                <div id="chartJunta"></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Cobertura de salud</div>
+                <div id="chartCobertura"></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Tipo de orientaciÃ³n prestacional</div>
+                <div id="chartOrientacionTipo"></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Tipo de vivienda</div>
+                <div id="chartVivienda"></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Alfabetización</div>
+                <div id="chartAlfabetizacion"></div>
+            </div>
+        </div>
     </div>
 
     <script src="./resources/ol.js"></script>
@@ -255,6 +326,7 @@
         let barrioLayer = null;
         let map = null;
         let overlay = null;
+        const expandedCharts = {};
 
         const filterEls = {
             comuna: $('filterComuna'),
@@ -318,7 +390,15 @@
             const iBarrio = idx('barrio');
             const iEstado = idx('estado_cud');
             const iOrientacion = idxAny(['orientacion_prestacional', 'orientación_prestacional']);
+            const iOrientacion1 = idx('tipo_orientacion_prestacional_1');
+            const iOrientacion2 = idx('tipo_orientacion_prestacional_2');
+            const iOrientacion3 = idx('tipo_orientacion_prestacional_3');
+            const iOrientacion4 = idx('tipo_orientacion_prestacional_4');
+            const iOtraOrientacion = idx('otra_orientacion_prestacional');
             const iCobertura = idxAny(['cobertura_de_salud', 'cobertura_salud', 'tipo_cobertura']);
+            const iCoberturaNombre = idxAny(['cobertura_de_salud_nombre', 'cobertura_salud_nombre']);
+            const iTipoVivienda = idx('tipo_de_vivienda');
+            const iAlfabetizacion = idx('alfabetizacion');
             const iEdad = idx('edad_actual');
             const iLat = idx('lat_direccion');
             const iLon = idx('lon_direccion');
@@ -338,7 +418,15 @@
                     barrio: clean(r[iBarrio]),
                     estado_cud: estado,
                     orientacion_prestacional: clean(r[iOrientacion]),
+                    tipo_orientacion_prestacional_1: clean(r[iOrientacion1]),
+                    tipo_orientacion_prestacional_2: clean(r[iOrientacion2]),
+                    tipo_orientacion_prestacional_3: clean(r[iOrientacion3]),
+                    tipo_orientacion_prestacional_4: clean(r[iOrientacion4]),
+                    otra_orientacion_prestacional: clean(r[iOtraOrientacion]),
                     cobertura_de_salud: clean(r[iCobertura]),
+                    cobertura_de_salud_nombre: clean(r[iCoberturaNombre]),
+                    tipo_de_vivienda: clean(r[iTipoVivienda]),
+                    alfabetizacion: clean(r[iAlfabetizacion]),
                     edad_actual: iEdad >= 0 ? parseNum(r[iEdad]) : 0,
                     lat_direccion: iLat >= 0 ? parseNum(r[iLat]) : 0,
                     lon_direccion: iLon >= 0 ? parseNum(r[iLon]) : 0,
@@ -366,7 +454,15 @@
                     barrio: clean(p.barrio),
                     estado_cud: estado,
                     orientacion_prestacional: clean(p.orientacion_prestacional ?? p['orientaciÃ³n_prestacional']),
+                    tipo_orientacion_prestacional_1: clean(p.tipo_orientacion_prestacional_1),
+                    tipo_orientacion_prestacional_2: clean(p.tipo_orientacion_prestacional_2),
+                    tipo_orientacion_prestacional_3: clean(p.tipo_orientacion_prestacional_3),
+                    tipo_orientacion_prestacional_4: clean(p.tipo_orientacion_prestacional_4),
+                    otra_orientacion_prestacional: clean(p.otra_orientacion_prestacional),
                     cobertura_de_salud: clean(p.cobertura_de_salud ?? p.cobertura_salud ?? p.tipo_cobertura),
+                    cobertura_de_salud_nombre: clean(p.cobertura_de_salud_nombre ?? p.cobertura_salud_nombre),
+                    tipo_de_vivienda: clean(p.tipo_de_vivienda),
+                    alfabetizacion: clean(p.alfabetizacion),
                     edad_actual: parseNum(p.edad_actual),
                     lat_direccion: parseNum(p.lat_direccion),
                     lon_direccion: parseNum(p.lon_direccion),
@@ -378,9 +474,9 @@
         }
 
         function loadCSV(){
-            return fetch('./01_base_comunas_mapa_copidis.csv')
+            return fetch('./01_base_comunas_mapa_copidis_agregada.csv')
                 .then(r => {
-                    if (!r.ok) throw new Error('No se pudo cargar ./01_base_comunas_mapa_copidis.csv');
+                    if (!r.ok) throw new Error('No se pudo cargar ./01_base_comunas_mapa_copidis_agregada.csv');
                     return r.text();
                 })
                 .then(text => {
@@ -395,6 +491,7 @@
         }
 
         function populateSelect(select, values, placeholder){
+            const previousValue = select.value;
             select.innerHTML = `<option value="">${placeholder}</option>`;
             values.forEach(value => {
                 const opt = document.createElement('option');
@@ -402,6 +499,17 @@
                 opt.textContent = value;
                 select.appendChild(opt);
             });
+            if (previousValue && values.includes(previousValue)) {
+                select.value = previousValue;
+            }
+        }
+
+        function refreshBarrioOptions(){
+            const selectedComuna = filterEls.comuna.value;
+            const barrioRows = selectedComuna
+                ? rows.filter(r => r.comuna === selectedComuna)
+                : rows;
+            populateSelect(filterEls.barrio, uniqSorted(barrioRows.map(r => r.barrio)), 'Todos');
         }
 
         function rebuildFilterOptions(){
@@ -411,7 +519,7 @@
             populateSelect(filterEls.orientacion, uniqSorted(rows.map(r => r.orientacion_prestacional)), 'Todas');
             populateSelect(filterEls.cobertura, uniqSorted(rows.map(r => r.cobertura_de_salud)), 'Todas');
             populateSelect(filterEls.sexo, uniqSorted(rows.map(r => r.sexo)), 'Todos');
-            populateSelect(filterEls.barrio, uniqSorted(rows.map(r => r.barrio)), 'Todos');
+            refreshBarrioOptions();
         }
 
         function rowValue(row){
@@ -602,6 +710,111 @@
                 ? topBarrios.map(([name,val]) => `<div><span>${escapeHtml(name)}</span><span>${fmt(val)}</span></div>`).join('')
                 : '-';
         }
+
+        function countRowsByField(rowsList, fieldName){
+            const counts = {};
+            rowsList.forEach(r => {
+                const value = rowValue(r);
+                const label = isNoData(r[fieldName]) ? 'Sin dato' : r[fieldName];
+                counts[label] = (counts[label] || 0) + value;
+            });
+            return Object.entries(counts)
+                .filter(([, value]) => value > 0)
+                .sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'));
+        }
+
+        function countCobertura(rowsList){
+            const counts = {};
+            rowsList.forEach(r => {
+                const value = rowValue(r);
+                const label = isNoData(r.cobertura_de_salud) ? 'Sin dato' : r.cobertura_de_salud;
+                counts[label] = (counts[label] || 0) + value;
+            });
+            return Object.entries(counts)
+                .filter(([, value]) => value > 0)
+                .sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'));
+        }
+
+        function countOrientaciones(rowsList){
+            const fields = [
+                'tipo_orientacion_prestacional_1',
+                'tipo_orientacion_prestacional_2',
+                'tipo_orientacion_prestacional_3',
+                'tipo_orientacion_prestacional_4',
+                'otra_orientacion_prestacional'
+            ];
+            const counts = {};
+            rowsList.forEach(r => {
+                const value = rowValue(r);
+                fields.forEach(field => {
+                    const label = r[field];
+                    if (isNoData(label)) return;
+                    counts[label] = (counts[label] || 0) + value;
+                });
+            });
+            return Object.entries(counts)
+                .filter(([, value]) => value > 0)
+                .sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'));
+        }
+
+        function renderBarChart(containerId, items, options = {}){
+            const el = $(containerId);
+            if (!el) return;
+            const limit = options.limit || 8;
+            const isExpanded = Boolean(expandedCharts[containerId]);
+            const chartItems = isExpanded ? items : items.slice(0, limit);
+            if (!chartItems.length) {
+                el.innerHTML = '<div class="chart-empty">Sin datos para los filtros activos</div>';
+                return;
+            }
+            const max = Math.max(...chartItems.map(([, value]) => value), 1);
+            el.innerHTML = chartItems.map(([name, value]) => {
+                const pct = Math.max(2, Math.round((value / max) * 100));
+                return `
+                    <div class="chart-row" title="${escapeHtml(name)}: ${fmt(value)}">
+                        <div class="chart-label">${escapeHtml(name)}</div>
+                        <div class="chart-bar-track"><div class="chart-bar" style="width:${pct}%"></div></div>
+                        <div class="chart-value">${fmt(value)}</div>
+                    </div>
+                `;
+            }).join('') + (items.length > limit ? `<div class="chart-note">+ ${items.length - limit} categorÃ­as mÃ¡s</div>` : '');
+        }
+
+        function renderBarChart(containerId, items, options = {}){
+            const el = $(containerId);
+            if (!el) return;
+            const limit = options.limit || 8;
+            const isExpanded = Boolean(expandedCharts[containerId]);
+            const chartItems = isExpanded ? items : items.slice(0, limit);
+            if (!chartItems.length) {
+                el.innerHTML = '<div class="chart-empty">Sin datos para los filtros activos</div>';
+                return;
+            }
+            const max = Math.max(...chartItems.map(([, value]) => value), 1);
+            const rowsHtml = chartItems.map(([name, value]) => {
+                const pct = Math.max(2, Math.round((value / max) * 100));
+                return `
+                    <div class="chart-row" title="${escapeHtml(name)}: ${fmt(value)}">
+                        <div class="chart-label">${escapeHtml(name)}</div>
+                        <div class="chart-bar-track"><div class="chart-bar" style="width:${pct}%"></div></div>
+                        <div class="chart-value">${fmt(value)}</div>
+                    </div>
+                `;
+            }).join('');
+            const toggleHtml = items.length > limit
+                ? `<button type="button" class="chart-toggle" data-chart-toggle="${containerId}">${isExpanded ? 'Ver menos' : 'Ver todas (' + items.length + ')'}</button>`
+                : '';
+            el.innerHTML = rowsHtml + toggleHtml;
+        }
+
+        function updateCharts(){
+            renderBarChart('chartRango', countRowsByField(filteredRows, 'rango_etario'), {limit: 7});
+            renderBarChart('chartJunta', countRowsByField(filteredRows, 'junta_discapacidad'), {limit: 8});
+            renderBarChart('chartCobertura', countCobertura(filteredRows), {limit: 8});
+            renderBarChart('chartOrientacionTipo', countOrientaciones(filteredRows), {limit: 8});
+            renderBarChart('chartVivienda', countRowsByField(filteredRows, 'tipo_de_vivienda'), {limit: 8});
+            renderBarChart('chartAlfabetizacion', countRowsByField(filteredRows, 'alfabetizacion'), {limit: 8});
+        }
         function updateLegend(){
             // Tarjeta de distribución por junta eliminada por solicitud.
         }
@@ -665,6 +878,7 @@
             filteredRows = rows.filter(rowMatches);
             computeCounts();
             updateKpis();
+            updateCharts();
             updateLegend();
             updateStyles();
             updateStatus();
@@ -673,6 +887,7 @@
 
         function clearFilters(){
             Object.values(filterEls).forEach(el => el.value = '');
+            refreshBarrioOptions();
             applyFilters();
         }
 
@@ -951,6 +1166,17 @@
         $('btnApply').addEventListener('click', applyFilters);
         $('btnClear').addEventListener('click', clearFilters);
         $('btnExportSummary').addEventListener('click', exportSummary);
+        filterEls.comuna.addEventListener('change', () => {
+            refreshBarrioOptions();
+            filterEls.barrio.value = '';
+        });
+        document.addEventListener('click', (evt) => {
+            const btn = evt.target.closest('[data-chart-toggle]');
+            if (!btn) return;
+            const chartId = btn.getAttribute('data-chart-toggle');
+            expandedCharts[chartId] = !expandedCharts[chartId];
+            updateCharts();
+        });
 
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init);
